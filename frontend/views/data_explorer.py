@@ -10,13 +10,8 @@ def render() -> None:
     st.markdown("### Data Explorer — Live Ingestion")
     st.caption("Luồng thật: Vnstock Free API (API key) → Raw JSON → validation/indicators → Curated Parquet → API.")
 
-    # ==========================================
-    # 1. KHỞI TẠO SESSION CACHE LƯU DỮ LIỆU & DANH SÁCH MÃ
-    # ==========================================
     if "preview_cache" not in st.session_state:
         st.session_state["preview_cache"] = {}
-    if "ingested_tickers" not in st.session_state:
-        st.session_state["ingested_tickers"] = []
 
     with st.form("live_ingestion"):
         ticker_text = st.text_input("Ticker", value="FPT", help="Có thể nhập nhiều mã, phân cách bằng dấu phẩy.")
@@ -38,16 +33,10 @@ def render() -> None:
                     result = run_pipeline(tickers, start_date.isoformat(), end_date.isoformat(), interval)
                     st.session_state["last_pipeline_result"] = result
                     
-                    # Cập nhật danh sách các mã đã cào thành công vào Session tích lũy
-                    for item in result["ingestion"]["details"]:
-                        if item["status"] == "PASS":
-                            t = item["ticker"]
-                            # Thêm vào dropdown nếu chưa có
-                            if t not in st.session_state["ingested_tickers"]:
-                                st.session_state["ingested_tickers"].append(t)
-                            # Nếu mã này đã có trong cache, xóa đi để Lấy data mới nhất vừa cào
-                            if t in st.session_state["preview_cache"]:
-                                del st.session_state["preview_cache"][t]
+                    # Reset lại Cache dữ liệu và số trang mỗi khi có request cào mới
+                    st.session_state["preview_cache"].clear()
+                    if "explorer_page" in st.session_state:
+                        st.session_state.explorer_page = 1
                                 
                     st.cache_data.clear()
                 except ApiClientError as error:
@@ -66,13 +55,11 @@ def render() -> None:
     st.caption(f"Raw file: {ingestion['raw_path']}")
     st.dataframe(pd.DataFrame(ingestion["details"]), width="stretch", hide_index=True)
 
-    # ==========================================
-    # 2. HIỂN THỊ DROPDOWN DỰA TRÊN SESSION TÍCH LŨY
-    # ==========================================
-    if st.session_state["ingested_tickers"]:
-        selected = st.selectbox("Preview dữ liệu qua consumption API", st.session_state["ingested_tickers"])
+    successful = [item["ticker"] for item in ingestion["details"] if item["status"] == "PASS"]
+    
+    if successful:
+        selected = st.selectbox("Preview dữ liệu qua consumption API", successful)
         try:
-            # LƯU VÀO SESSION CACHE THEO TỪNG CỔ PHIẾU
             if selected not in st.session_state["preview_cache"]:
                 payload = get_prices(
                     selected, 
@@ -82,15 +69,11 @@ def render() -> None:
                 )["data"]
                 st.session_state["preview_cache"][selected] = pd.DataFrame(payload)
 
-            # Lấy data từ cache ra để dùng
             preview = st.session_state["preview_cache"][selected]
             
             if preview.empty:
                 st.info("Không có dữ liệu cho khoảng thời gian này.")
             else:
-                # ==========================================
-                # 3. PHÂN TRANG (PAGINATION) BẢNG DỮ LIỆU PREVIEW
-                # ==========================================
                 rows_per_page = 15
                 total_rows = len(preview)
                 total_pages = math.ceil(total_rows / rows_per_page)

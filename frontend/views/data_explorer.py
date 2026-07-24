@@ -1,15 +1,22 @@
 from datetime import date, timedelta
-import math # Import thêm thư viện math để tính tổng số trang
+import math 
 
 import pandas as pd
 import streamlit as st
 
 from utils.api_client import ApiClientError, get_prices, run_pipeline
 
-
 def render() -> None:
     st.markdown("### Data Explorer — Live Ingestion")
     st.caption("Luồng thật: Vnstock Free API (API key) → Raw JSON → validation/indicators → Curated Parquet → API.")
+
+    # ==========================================
+    # 1. KHỞI TẠO SESSION CACHE LƯU DỮ LIỆU & DANH SÁCH MÃ
+    # ==========================================
+    if "preview_cache" not in st.session_state:
+        st.session_state["preview_cache"] = {}
+    if "ingested_tickers" not in st.session_state:
+        st.session_state["ingested_tickers"] = []
 
     with st.form("live_ingestion"):
         ticker_text = st.text_input("Ticker", value="FPT", help="Có thể nhập nhiều mã, phân cách bằng dấu phẩy.")
@@ -30,6 +37,18 @@ def render() -> None:
                 try:
                     result = run_pipeline(tickers, start_date.isoformat(), end_date.isoformat(), interval)
                     st.session_state["last_pipeline_result"] = result
+                    
+                    # Cập nhật danh sách các mã đã cào thành công vào Session tích lũy
+                    for item in result["ingestion"]["details"]:
+                        if item["status"] == "PASS":
+                            t = item["ticker"]
+                            # Thêm vào dropdown nếu chưa có
+                            if t not in st.session_state["ingested_tickers"]:
+                                st.session_state["ingested_tickers"].append(t)
+                            # Nếu mã này đã có trong cache, xóa đi để Lấy data mới nhất vừa cào
+                            if t in st.session_state["preview_cache"]:
+                                del st.session_state["preview_cache"][t]
+                                
                     st.cache_data.clear()
                 except ApiClientError as error:
                     st.error(str(error))
@@ -47,28 +66,38 @@ def render() -> None:
     st.caption(f"Raw file: {ingestion['raw_path']}")
     st.dataframe(pd.DataFrame(ingestion["details"]), width="stretch", hide_index=True)
 
-    successful = [item["ticker"] for item in ingestion["details"] if item["status"] == "PASS"]
-    if successful:
-        selected = st.selectbox("Preview dữ liệu qua consumption API", successful)
+    # ==========================================
+    # 2. HIỂN THỊ DROPDOWN DỰA TRÊN SESSION TÍCH LŨY
+    # ==========================================
+    if st.session_state["ingested_tickers"]:
+        selected = st.selectbox("Preview dữ liệu qua consumption API", st.session_state["ingested_tickers"])
         try:
-            preview = pd.DataFrame(get_prices(
-                selected, 
-                start_date.isoformat(), 
-                end_date.isoformat(), 
-                limit=10000
-            )["data"])
+            # LƯU VÀO SESSION CACHE THEO TỪNG CỔ PHIẾU
+            if selected not in st.session_state["preview_cache"]:
+                payload = get_prices(
+                    selected, 
+                    start_date.isoformat(), 
+                    end_date.isoformat(), 
+                    limit=10000
+                )["data"]
+                st.session_state["preview_cache"][selected] = pd.DataFrame(payload)
+
+            # Lấy data từ cache ra để dùng
+            preview = st.session_state["preview_cache"][selected]
             
             if preview.empty:
                 st.info("Không có dữ liệu cho khoảng thời gian này.")
             else:
-                rows_per_page = 15 # Số dòng mỗi trang
+                # ==========================================
+                # 3. PHÂN TRANG (PAGINATION) BẢNG DỮ LIỆU PREVIEW
+                # ==========================================
+                rows_per_page = 15
                 total_rows = len(preview)
                 total_pages = math.ceil(total_rows / rows_per_page)
 
                 if "explorer_page" not in st.session_state:
                     st.session_state.explorer_page = 1
 
-                # Reset lại trang về 1 nếu thay đổi Ticker làm số trang bị hụt
                 if st.session_state.explorer_page > total_pages:
                     st.session_state.explorer_page = 1
 
@@ -77,6 +106,7 @@ def render() -> None:
                 with col_prev:
                     if st.button("⬅️ Trang trước") and st.session_state.explorer_page > 1:
                         st.session_state.explorer_page -= 1
+                        st.rerun() 
                         
                 with col_page_info:
                     st.write(f"Trang {st.session_state.explorer_page} / {total_pages} (Tổng: {total_rows} dòng)")
@@ -84,13 +114,12 @@ def render() -> None:
                 with col_next:
                     if st.button("Trang tiếp ➡️") and st.session_state.explorer_page < total_pages:
                         st.session_state.explorer_page += 1
+                        st.rerun()
 
-                # Cắt dataframe theo trang
                 start_idx = (st.session_state.explorer_page - 1) * rows_per_page
                 end_idx = start_idx + rows_per_page
                 paged_preview = preview.iloc[start_idx:end_idx]
                 
-                # Hiển thị bảng dữ liệu đã phân trang
                 st.dataframe(paged_preview, width="stretch", hide_index=True)
 
         except ApiClientError as error:

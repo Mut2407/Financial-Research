@@ -5,7 +5,6 @@ import streamlit as st
 import math
 
 from utils.api_client import ApiClientError, get_companies, get_prices
-# Bổ sung hàm import vẽ biểu đồ
 from utils.plotting import create_financial_plot
 
 

@@ -1,0 +1,5 @@
+[latency_ms]
+# Provisional PoC ceiling derived from the documented 5-second/request architecture assumption.
+# This is not a production SLA and must be replaced when product p95/p99 SLOs are approved.
+enforce = false
+local_prices_api_p95 = 5000

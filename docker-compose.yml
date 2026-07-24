@@ -1,0 +1,71 @@
+name: financial-data-poc
+
+x-app: &app
+  image: financial-data-poc:local
+  env_file:
+    - path: .env
+      required: false
+  volumes:
+    - ./data:/app/data
+
+services:
+  pipeline:
+    <<: *app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "src.pipeline.cli", "bootstrap"]
+    environment:
+      ENVIRONMENT: docker
+      DATA_PROVIDER: VNSTOCK_FREE
+      VNSTOCK_REQUESTS_PER_MINUTE: 60
+      RAW_DATA_DIR: data/raw/ohlcv
+      CURATED_DATA_DIR: data/curated/ohlcv
+      SEED_RAW_DATA_DIR: reports/raw/ohlcv
+    restart: "no"
+
+  backend:
+    <<: *app
+    command: ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      ENVIRONMENT: docker
+      DATA_PROVIDER: VNSTOCK_FREE
+      VNSTOCK_REQUESTS_PER_MINUTE: 60
+      RAW_DATA_DIR: data/raw/ohlcv
+      CURATED_DATA_DIR: data/curated/ohlcv
+      SEED_RAW_DATA_DIR: reports/raw/ohlcv
+      CORS_ORIGINS: http://localhost:8501
+    ports:
+      - "8000:8000"
+    depends_on:
+      pipeline:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+
+  frontend:
+    <<: *app
+    command: ["streamlit", "run", "frontend/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    environment:
+      API_BASE_URL: http://backend:8000
+      # PyArrow 25's default mimalloc backend can segfault while Streamlit
+      # repeatedly serializes st.dataframe payloads. The system allocator is
+      # stable for this workload and must be selected before PyArrow imports.
+      ARROW_DEFAULT_MEMORY_POOL: system
+      PYTHONFAULTHANDLER: "1"
+    ports:
+      - "8501:8501"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=3)"]
+      interval: 10s
+      timeout: 4s
+      retries: 3
+      start_period: 15s
+    init: true
+    restart: unless-stopped

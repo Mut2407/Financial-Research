@@ -1,0 +1,159 @@
+name: QA
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-partitions:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Backend unit
+            id: backend-unit
+            marker: unit and not frontend
+          - name: Backend integration
+            id: backend-integration
+            marker: integration and not frontend and not performance
+          - name: Frontend flows
+            id: frontend
+            marker: frontend
+          - name: Local latency
+            id: performance
+            marker: performance
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Verify lock and sync dependencies
+        run: uv sync --locked
+
+      - name: Run ${{ matrix.name }} tests
+        env:
+          PYTEST_MARKER: ${{ matrix.marker }}
+          REPORT_DIR: reports/tests/${{ matrix.id }}
+        run: >-
+          uv run pytest
+          -m "$PYTEST_MARKER"
+          --timeout=30
+          --report-dir="$REPORT_DIR"
+          --junitxml="$REPORT_DIR/junit.xml"
+
+      - name: Upload ${{ matrix.name }} reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: qa-${{ matrix.id }}
+          path: reports/tests/${{ matrix.id }}/
+          if-no-files-found: error
+          retention-days: 14
+
+  coverage:
+    name: Coverage and full regression
+    needs: test-partitions
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Verify lock and sync dependencies
+        run: uv sync --locked
+
+      - name: Validate Docker Compose contract
+        run: docker compose config --quiet
+
+      - name: Build production image from locked dependencies
+        run: docker build --tag financial-data-poc:ci .
+
+      - name: Run deterministic full suite and coverage gate
+        run: >-
+          uv run pytest
+          -m "not live"
+          --timeout=30
+          --report-dir=reports/tests/full
+          --junitxml=reports/tests/full/junit.xml
+          --cov=src
+          --cov=frontend
+          --cov-report=term-missing
+          --cov-report=xml:reports/tests/full/coverage.xml
+          --cov-fail-under=80
+
+      - name: Upload full QA reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: qa-full-regression
+          path: reports/tests/full/
+          if-no-files-found: error
+          retention-days: 14
+
+  live-vnstock-free:
+    name: Manual Vnstock Free API contract
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUN_VNSTOCK_LIVE_TESTS: "1"
+      VNSTOCK_API_KEY: ${{ secrets.VNSTOCK_API_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Verify Vnstock secret is configured
+        run: test -n "$VNSTOCK_API_KEY" || (echo "Missing repository secret VNSTOCK_API_KEY" && exit 1)
+
+      - name: Verify lock and sync dependencies
+        run: uv sync --locked
+
+      - name: Run one-ticker authenticated contract and characterize latency
+        run: >-
+          uv run pytest
+          -m live
+          --timeout=60
+          --report-dir=reports/tests/live-vnstock-free
+          --junitxml=reports/tests/live-vnstock-free/junit.xml
+
+      - name: Upload live contract report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: qa-live-vnstock-free
+          path: reports/tests/live-vnstock-free/
+          if-no-files-found: error
+          retention-days: 7

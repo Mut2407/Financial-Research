@@ -1,0 +1,10 @@
+[theme]
+# Bảng màu phong cách Dashboard Tài chính (Light mode, Clean)
+primaryColor = "#2563eb" # Blue
+backgroundColor = "#f8fafc" # Slate 50
+secondaryBackgroundColor = "#ffffff" # White cho sidebar
+textColor = "#0f172a" # Slate 900
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false

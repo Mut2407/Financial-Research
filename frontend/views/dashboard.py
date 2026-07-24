@@ -2,6 +2,7 @@ from datetime import date
 
 import pandas as pd
 import streamlit as st
+import math
 
 from utils.api_client import ApiClientError, get_companies, get_prices
 # Bổ sung hàm import vẽ biểu đồ
@@ -86,4 +87,37 @@ def render() -> None:
         st.plotly_chart(figure, width="stretch")
 
     with st.expander("Xem dữ liệu curated"):
-        st.dataframe(frame, width="stretch", hide_index=True)
+            if frame.empty:
+                st.info("Không có dữ liệu.")
+                return
+                
+            # Thiết lập số dòng mỗi trang
+            rows_per_page = 20 
+            total_rows = len(frame)
+            total_pages = math.ceil(total_rows / rows_per_page)
+
+            # Quản lý trạng thái trang hiện tại trong Streamlit
+            if "current_page" not in st.session_state:
+                st.session_state.current_page = 1
+
+            # Các nút điều hướng phân trang
+            col_prev, col_page_info, col_next = st.columns([1, 2, 1])
+            
+            with col_prev:
+                if st.button("⬅️ Trang trước") and st.session_state.current_page > 1:
+                    st.session_state.current_page -= 1
+                    
+            with col_page_info:
+                st.write(f"Trang {st.session_state.current_page} / {total_pages} (Tổng: {total_rows} dòng)")
+                
+            with col_next:
+                if st.button("Trang tiếp ➡️") and st.session_state.current_page < total_pages:
+                    st.session_state.current_page += 1
+
+            # Cắt dataframe theo trang hiện tại
+            start_idx = (st.session_state.current_page - 1) * rows_per_page
+            end_idx = start_idx + rows_per_page
+            
+            # Hiển thị dữ liệu đã được cắt
+            paged_frame = frame.iloc[start_idx:end_idx]
+            st.dataframe(paged_frame, width="stretch", hide_index=True)

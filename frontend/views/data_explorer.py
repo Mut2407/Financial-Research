@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+import math # Import thêm thư viện math để tính tổng số trang
 
 import pandas as pd
 import streamlit as st
@@ -50,7 +51,47 @@ def render() -> None:
     if successful:
         selected = st.selectbox("Preview dữ liệu qua consumption API", successful)
         try:
-            preview = pd.DataFrame(get_prices(selected, limit=10000)["data"])
-            st.dataframe(preview, width="stretch", hide_index=True)
+            preview = pd.DataFrame(get_prices(
+                selected, 
+                start_date.isoformat(), 
+                end_date.isoformat(), 
+                limit=10000
+            )["data"])
+            
+            if preview.empty:
+                st.info("Không có dữ liệu cho khoảng thời gian này.")
+            else:
+                rows_per_page = 15 # Số dòng mỗi trang
+                total_rows = len(preview)
+                total_pages = math.ceil(total_rows / rows_per_page)
+
+                if "explorer_page" not in st.session_state:
+                    st.session_state.explorer_page = 1
+
+                # Reset lại trang về 1 nếu thay đổi Ticker làm số trang bị hụt
+                if st.session_state.explorer_page > total_pages:
+                    st.session_state.explorer_page = 1
+
+                col_prev, col_page_info, col_next = st.columns([1, 2, 1])
+                
+                with col_prev:
+                    if st.button("⬅️ Trang trước") and st.session_state.explorer_page > 1:
+                        st.session_state.explorer_page -= 1
+                        
+                with col_page_info:
+                    st.write(f"Trang {st.session_state.explorer_page} / {total_pages} (Tổng: {total_rows} dòng)")
+                    
+                with col_next:
+                    if st.button("Trang tiếp ➡️") and st.session_state.explorer_page < total_pages:
+                        st.session_state.explorer_page += 1
+
+                # Cắt dataframe theo trang
+                start_idx = (st.session_state.explorer_page - 1) * rows_per_page
+                end_idx = start_idx + rows_per_page
+                paged_preview = preview.iloc[start_idx:end_idx]
+                
+                # Hiển thị bảng dữ liệu đã phân trang
+                st.dataframe(paged_preview, width="stretch", hide_index=True)
+
         except ApiClientError as error:
             st.error(str(error))

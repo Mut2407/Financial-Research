@@ -16,7 +16,7 @@ def get_prices(
     start_date: date | None = Query(None, description="Ngày bắt đầu (YYYY-MM-DD)"),
     end_date: date | None = Query(None, description="Ngày kết thúc (YYYY-MM-DD)"),
     page: int = Query(1, ge=1, description="Trang hiện tại"),
-    limit: int = Query(100, ge=1, le=10000, description="Số lượng kết quả mỗi trang"),
+    limit: int = Query(10000, ge=1, le=10000, description="Số lượng kết quả mỗi trang"),
     data_service: DataService = Depends(get_data_service)
 ):
     """Query curated OHLCV data with optional date filters."""

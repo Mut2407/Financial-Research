@@ -39,7 +39,7 @@ def get_prices(
     ticker: str,
     start_date: str | None = None,
     end_date: str | None = None,
-    limit: int = 1000,
+    limit: int = 10000, 
 ) -> dict:
     params: dict[str, Any] = {"ticker": ticker, "page": 1, "limit": limit}
     if start_date:

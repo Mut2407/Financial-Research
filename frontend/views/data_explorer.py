@@ -50,7 +50,7 @@ def render() -> None:
     if successful:
         selected = st.selectbox("Preview dữ liệu qua consumption API", successful)
         try:
-            preview = pd.DataFrame(get_prices(selected, limit=1000)["data"])
-            st.dataframe(preview.tail(20), width="stretch", hide_index=True)
+            preview = pd.DataFrame(get_prices(selected, limit=10000)["data"])
+            st.dataframe(preview, width="stretch", hide_index=True)
         except ApiClientError as error:
             st.error(str(error))

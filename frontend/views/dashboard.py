@@ -1,11 +1,11 @@
 from datetime import date
 
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
-from plotly.subplots import make_subplots
 
 from utils.api_client import ApiClientError, get_companies, get_prices
+# Bổ sung hàm import vẽ biểu đồ
+from utils.plotting import create_financial_plot
 
 
 @st.cache_data(ttl=30)
@@ -20,53 +20,6 @@ def load_prices(ticker: str, start_date: str | None, end_date: str | None) -> pd
     if not frame.empty:
         frame["trading_date"] = pd.to_datetime(frame["trading_date"])
     return frame
-
-
-def _render_chart(frame: pd.DataFrame, ticker: str) -> None:
-    colors = frame.apply(
-        lambda row: "#089981" if row["close_price"] >= row["open_price"] else "#F23645",
-        axis=1,
-    )
-    figure = make_subplots(
-        rows=2,
-        cols=1,
-        shared_xaxes=True,
-        vertical_spacing=0.03,
-        row_heights=[0.78, 0.22],
-    )
-    figure.add_trace(
-        go.Candlestick(
-            x=frame["trading_date"],
-            open=frame["open_price"],
-            high=frame["high_price"],
-            low=frame["low_price"],
-            close=frame["close_price"],
-            name=ticker,
-            increasing_line_color="#089981",
-            decreasing_line_color="#F23645",
-        ),
-        row=1,
-        col=1,
-    )
-    if "ma20" in frame:
-        figure.add_trace(
-            go.Scatter(x=frame["trading_date"], y=frame["ma20"], name="MA20", line={"color": "#2563eb"}),
-            row=1,
-            col=1,
-        )
-    figure.add_trace(
-        go.Bar(x=frame["trading_date"], y=frame["volume"], marker_color=colors, name="Volume"),
-        row=2,
-        col=1,
-    )
-    figure.update_layout(
-        template="plotly_white",
-        height=620,
-        margin={"l": 10, "r": 10, "t": 35, "b": 10},
-        xaxis_rangeslider_visible=False,
-        hovermode="x unified",
-    )
-    st.plotly_chart(figure, width="stretch")
 
 
 def render() -> None:
@@ -125,7 +78,12 @@ def render() -> None:
     col3.metric("MA20", "N/A" if pd.isna(ma20) else f"{ma20:,.2f}")
     rsi = latest.get("rsi_14")
     col4.metric("RSI 14", "N/A" if pd.isna(rsi) else f"{rsi:,.2f}")
-    _render_chart(frame, company["ticker"])
+    
+    # Logic tối ưu: Chỉ gọi hàm xử lý và vẽ biểu đồ khi user ấn vào checkbox
+    show_plot = st.checkbox("Hiển thị biểu đồ phân tích kỹ thuật", value=False)
+    if show_plot:
+        figure = create_financial_plot(frame, company["ticker"])
+        st.plotly_chart(figure, width="stretch")
 
     with st.expander("Xem dữ liệu curated"):
         st.dataframe(frame, width="stretch", hide_index=True)

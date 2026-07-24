@@ -61,3 +61,14 @@ def run_pipeline(tickers: list[str], start_date: str, end_date: str, interval: s
             "interval": interval,
         },
     )
+
+def get_financial_reports(ticker: str, period: str = "quarter") -> dict:
+    """
+    Gọi API Backend để lấy dữ liệu Báo cáo tài chính (Doanh thu, Lợi nhuận).
+    - period: "quarter" (Quý) hoặc "year" (Năm)
+    """
+    params = {
+        "ticker": ticker,
+        "period": period
+    }
+    return _request("GET", "/financial-reports", params=params)

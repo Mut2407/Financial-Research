@@ -55,3 +55,9 @@ Thumbs.db
 *.tfstate.*
 .terraform.lock.hcl
 crash.log
+
+# amplify
+node_modules
+.amplify
+amplify_outputs*
+amplifyconfiguration*

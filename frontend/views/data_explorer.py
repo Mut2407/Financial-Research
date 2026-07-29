@@ -12,6 +12,8 @@ def render() -> None:
 
     if "preview_cache" not in st.session_state:
         st.session_state["preview_cache"] = {}
+    if "ingested_tickers" not in st.session_state:
+        st.session_state["ingested_tickers"] = []
 
     with st.form("live_ingestion"):
         ticker_text = st.text_input("Ticker", value="FPT", help="Có thể nhập nhiều mã, phân cách bằng dấu phẩy.")
@@ -33,10 +35,13 @@ def render() -> None:
                     result = run_pipeline(tickers, start_date.isoformat(), end_date.isoformat(), interval)
                     st.session_state["last_pipeline_result"] = result
                     
-                    # Reset lại Cache dữ liệu và số trang mỗi khi có request cào mới
-                    st.session_state["preview_cache"].clear()
-                    if "explorer_page" in st.session_state:
-                        st.session_state.explorer_page = 1
+                    for item in result["ingestion"]["details"]:
+                        if item["status"] == "PASS":
+                            t = item["ticker"]
+                            if t not in st.session_state["ingested_tickers"]:
+                                st.session_state["ingested_tickers"].append(t)
+                            if t in st.session_state["preview_cache"]:
+                                del st.session_state["preview_cache"][t]
                                 
                     st.cache_data.clear()
                 except ApiClientError as error:
@@ -55,17 +60,15 @@ def render() -> None:
     st.caption(f"Raw file: {ingestion['raw_path']}")
     st.dataframe(pd.DataFrame(ingestion["details"]), width="stretch", hide_index=True)
 
-    successful = [item["ticker"] for item in ingestion["details"] if item["status"] == "PASS"]
-    
-    if successful:
-        selected = st.selectbox("Preview dữ liệu qua consumption API", successful)
+    if st.session_state["ingested_tickers"]:
+        selected = st.selectbox("Preview dữ liệu qua consumption API", st.session_state["ingested_tickers"])
         try:
             if selected not in st.session_state["preview_cache"]:
                 payload = get_prices(
                     selected, 
                     start_date.isoformat(), 
                     end_date.isoformat(), 
-                    limit=10000
+                    limit=1000
                 )["data"]
                 st.session_state["preview_cache"][selected] = pd.DataFrame(payload)
 

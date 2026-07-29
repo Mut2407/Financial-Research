@@ -39,7 +39,7 @@ def get_prices(
     ticker: str,
     start_date: str | None = None,
     end_date: str | None = None,
-    limit: int = 10000, 
+    limit: int = 1000,
 ) -> dict:
     params: dict[str, Any] = {"ticker": ticker, "page": 1, "limit": limit}
     if start_date:
@@ -61,14 +61,3 @@ def run_pipeline(tickers: list[str], start_date: str, end_date: str, interval: s
             "interval": interval,
         },
     )
-
-def get_financial_reports(ticker: str, period: str = "quarter") -> dict:
-    """
-    Gọi API Backend để lấy dữ liệu Báo cáo tài chính (Doanh thu, Lợi nhuận).
-    - period: "quarter" (Quý) hoặc "year" (Năm)
-    """
-    params = {
-        "ticker": ticker,
-        "period": period
-    }
-    return _request("GET", "/financial-reports", params=params)

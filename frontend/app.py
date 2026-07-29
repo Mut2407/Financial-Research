@@ -87,8 +87,8 @@ if st.session_state.authenticated:
         # Menu mới theo đúng 6 module yêu cầu
         selected_page = option_menu(
             menu_title=None,
-            options=["Dashboard", "Data Explorer", "Profit & Loss", "Settings"],
-            icons=["house-door", "search", "graph-up", "gear"],
+            options=["Dashboard", "Data Explorer", "Settings"],
+            icons=["house-door", "search", "gear"],
             default_index=0,
             styles={
                 "nav-link": {"font-size": "13px", "font-weight": "600", "text-transform": "uppercase"},
@@ -139,9 +139,6 @@ if st.session_state.authenticated:
             settings.render()
         elif selected_page == "Data Explorer": 
             data_explorer.render()    
-        elif selected_page == "Profit & Loss": 
-            from views import pnl
-            pnl.render()
     except Exception as e:
         st.warning(f"🚧 Module '{selected_page}' đang được xây dựng. Vui lòng tạo file tương ứng trong thư mục views/.")
 

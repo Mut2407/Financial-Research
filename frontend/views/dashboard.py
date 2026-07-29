@@ -15,7 +15,7 @@ def load_companies() -> list[dict]:
 
 @st.cache_data(ttl=30)
 def load_prices(ticker: str, start_date: str | None, end_date: str | None) -> pd.DataFrame:
-    payload = get_prices(ticker, start_date, end_date, limit=10000)
+    payload = get_prices(ticker, start_date, end_date, limit=1000)
     frame = pd.DataFrame(payload["data"])
     if not frame.empty:
         frame["trading_date"] = pd.to_datetime(frame["trading_date"])
@@ -79,7 +79,6 @@ def render() -> None:
     rsi = latest.get("rsi_14")
     col4.metric("RSI 14", "N/A" if pd.isna(rsi) else f"{rsi:,.2f}")
     
-    # Logic tối ưu: Chỉ gọi hàm xử lý và vẽ biểu đồ khi user ấn vào checkbox
     show_plot = st.checkbox("Hiển thị biểu đồ phân tích kỹ thuật", value=False)
     if show_plot:
         figure = create_financial_plot(frame, company["ticker"])
@@ -90,16 +89,13 @@ def render() -> None:
                 st.info("Không có dữ liệu.")
                 return
                 
-            # Thiết lập số dòng mỗi trang
             rows_per_page = 20 
             total_rows = len(frame)
             total_pages = math.ceil(total_rows / rows_per_page)
 
-            # Quản lý trạng thái trang hiện tại trong Streamlit
             if "current_page" not in st.session_state:
                 st.session_state.current_page = 1
 
-            # Các nút điều hướng phân trang
             col_prev, col_page_info, col_next = st.columns([1, 2, 1])
             
             with col_prev:
@@ -113,10 +109,8 @@ def render() -> None:
                 if st.button("Trang tiếp ➡️") and st.session_state.current_page < total_pages:
                     st.session_state.current_page += 1
 
-            # Cắt dataframe theo trang hiện tại
             start_idx = (st.session_state.current_page - 1) * rows_per_page
             end_idx = start_idx + rows_per_page
             
-            # Hiển thị dữ liệu đã được cắt
             paged_frame = frame.iloc[start_idx:end_idx]
             st.dataframe(paged_frame, width="stretch", hide_index=True)

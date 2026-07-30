@@ -22,6 +22,7 @@
     "lucide-react": "^1.27.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-is": "^19.0.0",
     "react-hook-form": "^7.83.0",
     "react-router-dom": "^7.18.1",
     "recharts": "^3.10.1",
@@ -30,6 +31,9 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@aws-amplify/backend": "^1.16.1",
+    "@aws-amplify/backend-cli": "^1.6.0",
+    "@opentelemetry/core": "^2.0.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",

@@ -25,5 +25,6 @@ dist-ssr
 
 # amplify
 .amplify
+.npm
 amplify_outputs*
 amplifyconfiguration*

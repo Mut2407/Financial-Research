@@ -22,9 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-# amplify
-.amplify
-.npm
-amplify_outputs*
-amplifyconfiguration*

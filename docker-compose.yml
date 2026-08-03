@@ -47,25 +47,19 @@ services:
       retries: 12
 
   frontend:
-    <<: *app
-    command: ["streamlit", "run", "frontend/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
-    environment:
-      API_BASE_URL: http://backend:8000
-      # PyArrow 25's default mimalloc backend can segfault while Streamlit
-      # repeatedly serializes st.dataframe payloads. The system allocator is
-      # stable for this workload and must be selected before PyArrow imports.
-      ARROW_DEFAULT_MEMORY_POOL: system
-      PYTHONFAULTHANDLER: "1"
+    build:
+      context: ./react-frontend
+      dockerfile: Dockerfile
     ports:
-      - "8501:8501"
+      - "5173:80"
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=3)"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1"]
       interval: 10s
       timeout: 4s
       retries: 3
-      start_period: 15s
-    init: true
+      start_period: 5s
     restart: unless-stopped
+

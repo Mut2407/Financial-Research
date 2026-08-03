@@ -1,0 +1,475 @@
+Hướng dẫn tổng quan cách xây dựng hệ thống thu thập dữ liệu và dự đoán Financial Distress
+1. Ý tưởng chính của hệ thống
+Mục tiêu của hệ thống là thu thập dữ liệu tài chính của các doanh nghiệp niêm yết trên sàn chứng khoán Việt Nam, sau đó xử lý thành bộ dữ liệu có thể dùng để phân tích hoặc huấn luyện mô hình AI/Machine Learning nhằm dự đoán doanh nghiệp có nguy cơ rơi vào tình trạng kiệt quệ tài chính hay không.
+Hiểu đơn giản, hệ thống làm các việc sau:
+Lấy danh sách công ty
+→ Lấy báo cáo tài chính
+→ Lấy dữ liệu giá cổ phiếu
+→ Tính các chỉ số tài chính
+→ Gán nhãn rủi ro
+→ Xuất dataset cuối cùng
+→ Đưa vào mô hình dự đoán
+Đây là cách làm rất phổ biến trong các bài toán phân tích tài chính, chấm điểm rủi ro doanh nghiệp, cảnh báo sớm phá sản hoặc xây dựng mô hình scoring cho nhà đầu tư.
+2. Nguồn dữ liệu có thể lấy từ đâu?
+Để làm bài toán này, cần 2 nhóm dữ liệu chính.
+Nhóm 1: Dữ liệu doanh nghiệp
+Bao gồm:
+Mã cổ phiếu
+Tên doanh nghiệp
+Sàn niêm yết
+Ngành nghề
+Trạng thái niêm yết
+Các nguồn có thể lấy:
+HOSE
+HNX
+UPCOM
+Vietstock
+CafeF
+FireAnt
+SSI iBoard
+TCBS
+VCI
+vnstock
+FiinPro nếu có tài khoản trả phí
+Nếu dùng Python, có thể dùng thư viện như vnstock để lấy danh sách công ty và một phần dữ liệu tài chính. Ngoài ra có thể gọi API nội bộ từ một số website tài chính nếu website đó có endpoint trả về JSON.
+Nhóm 2: Dữ liệu báo cáo tài chính
+Cần lấy tối thiểu 3 loại báo cáo:
+Bảng cân đối kế toán
+Báo cáo kết quả kinh doanh
+Báo cáo lưu chuyển tiền tệ
+Từ đó lấy ra các chỉ tiêu như:
+Tổng tài sản
+Tài sản ngắn hạn
+Nợ ngắn hạn
+Nợ dài hạn
+Tổng nợ phải trả
+Vốn chủ sở hữu
+Doanh thu thuần
+Lợi nhuận sau thuế
+Lợi nhuận trước thuế
+Chi phí lãi vay
+Dòng tiền từ hoạt động kinh doanh
+Hàng tồn kho
+Lợi nhuận chưa phân phối
+Vốn điều lệ
+Ngoài báo cáo tài chính, cần thêm dữ liệu thị trường:
+Giá cổ phiếu cuối năm
+Vốn hóa thị trường
+Số lượng cổ phiếu lưu hành
+Các dữ liệu này giúp tính thêm các biến liên quan đến giá trị thị trường của doanh nghiệp.
+3. Cách lấy API dữ liệu tài chính
+Về bản chất, có 4 cách lấy API hoặc dữ liệu.
+Cách 1: Dùng thư viện có sẵn
+Ví dụ trong Python có thể dùng:
+vnstock
+yfinance cho dữ liệu quốc tế
+pandas đọc CSV/Excel
+requests gọi API
+Ưu điểm:
+Dễ dùng
+Nhanh triển khai
+Không cần tự dò API quá nhiều
+Nhược điểm:
+Phụ thuộc vào thư viện
+Nếu website đổi API thì thư viện có thể lỗi
+Một số dữ liệu có thể thiếu hoặc không đồng nhất
+Cách 2: Gọi API nội bộ của website tài chính
+Nhiều website tài chính khi bạn mở báo cáo tài chính trên trình duyệt, thực chất website sẽ gọi API để lấy dữ liệu JSON.
+Cách kiểm tra:
+Mở website tài chính
+Nhấn F12
+Vào tab Network
+Lọc theo Fetch/XHR
+Tải lại trang
+Tìm request trả về dữ liệu JSON
+Xem endpoint, params, headers
+Dùng Python requests gọi lại endpoint đó
+Ví dụ một API thường có dạng:
+https://domain.com/api/financial-report?symbol=AAA&year=2024&type=balance_sheet
+Hoặc:
+https://domain.com/api/company/AAA/financials
+Khi gọi API, thường cần chú ý:
+symbol: mã cổ phiếu
+year: năm
+quarter: quý
+report_type: loại báo cáo
+source: nguồn dữ liệu
+headers: user-agent, authorization nếu có
+cookie: nếu API yêu cầu phiên đăng nhập
+Ưu điểm:
+Dữ liệu sạch hơn crawl HTML
+Tốc độ nhanh
+Dễ parse thành bảng
+Nhược điểm:
+API có thể đổi bất cứ lúc nào
+Có thể bị giới hạn request
+Có thể cần token/cookie
+Cần xử lý chống lỗi và retry
+Cách 3: Crawl trực tiếp từ HTML
+Nếu website không có API JSON rõ ràng, có thể crawl HTML.
+Cách làm:
+Gửi request tới trang báo cáo tài chính
+Parse HTML bằng BeautifulSoup
+Tìm bảng dữ liệu
+Trích xuất từng dòng chỉ tiêu
+Chuẩn hóa về DataFrame
+Ưu điểm:
+Có thể lấy được dữ liệu ngay cả khi không có API rõ ràng
+Phù hợp với website đơn giản
+Nhược điểm:
+Dễ lỗi nếu website đổi giao diện
+Dữ liệu bảng có thể khó parse
+Tốc độ chậm
+Không ổn định bằng API
+Cách 4: Dùng nguồn trả phí
+Nếu làm nghiêm túc cho nghiên cứu, doanh nghiệp hoặc sản phẩm thương mại, có thể dùng nguồn dữ liệu trả phí như:
+FiinPro
+Bloomberg
+Refinitiv
+S&P Capital IQ
+FactSet
+StoxPlus
+Ưu điểm:
+Dữ liệu sạch
+Có lịch sử dài
+Có chuẩn ngành
+Có dữ liệu doanh nghiệp hủy niêm yết
+Độ tin cậy cao
+Nhược điểm:
+Chi phí cao
+Có ràng buộc bản quyền dữ liệu
+Không phù hợp nếu chỉ làm MVP hoặc nghiên cứu cá nhân
+4. Quy trình lấy dữ liệu nên thiết kế như thế nào?
+Không nên lấy dữ liệu một cách ngẫu nhiên. Nên thiết kế thành pipeline có thứ tự.
+Bước 1: Lấy danh sách doanh nghiệp
+Đầu tiên, lấy toàn bộ mã cổ phiếu từ các sàn:
+HOSE
+HNX
+UPCOM
+Sau đó lọc ra những doanh nghiệp phù hợp.
+Ví dụ nếu bài toán là dự đoán distress cho doanh nghiệp phi tài chính, cần loại bỏ:
+Ngân hàng
+Chứng khoán
+Bảo hiểm
+Quỹ đầu tư
+Công ty tài chính
+Lý do là nhóm tài chính có cấu trúc báo cáo tài chính rất khác doanh nghiệp sản xuất, thương mại, dịch vụ. Nếu trộn chung sẽ làm mô hình sai lệch.
+Bước 2: Lấy báo cáo tài chính theo từng mã
+Với mỗi mã cổ phiếu, hệ thống sẽ lấy báo cáo tài chính theo từng năm hoặc từng quý.
+Ví dụ:
+AAA - 2018
+AAA - 2019
+AAA - 2020
+...
+AAA - 2025
+Với mỗi năm, lấy các nhóm dữ liệu:
+Balance Sheet
+Income Statement
+Cash Flow
+Market Data
+Nên thiết kế cơ chế lấy dữ liệu theo vòng lặp:
+For each ticker:
+For each year:
+lấy bảng cân đối kế toán
+lấy báo cáo kết quả kinh doanh
+lấy báo cáo lưu chuyển tiền tệ
+lấy giá cổ phiếu cuối năm
+Bước 3: Có cơ chế retry và checkpoint
+Khi crawl dữ liệu tài chính, chắc chắn sẽ gặp lỗi:
+API timeout
+Website chặn request
+Dữ liệu thiếu
+Mã cổ phiếu không tồn tại
+Công ty mới niêm yết
+Công ty đã hủy niêm yết
+Sai format dữ liệu
+Vì vậy pipeline nên có:
+Retry khi request lỗi
+Delay giữa các request
+Random delay để tránh bị chặn
+Checkpoint sau mỗi vài chục công ty
+Danh sách failed_tickers để chạy lại sau
+Ví dụ logic tổng quát:
+Gọi API
+Nếu thành công → lưu dữ liệu
+Nếu lỗi → thử lại 3 lần
+Nếu vẫn lỗi → ghi mã đó vào failed list
+Sau mỗi 25 công ty → lưu checkpoint
+Đây là điểm rất quan trọng. Nếu không có checkpoint, đang crawl 1000 công ty mà lỗi ở công ty thứ 800 thì phải chạy lại từ đầu.
+5. Sau khi lấy dữ liệu cần xử lý gì?
+Dữ liệu thô thường không dùng được ngay. Cần xử lý qua nhiều bước.
+Chuẩn hóa tên cột
+Mỗi nguồn dữ liệu có thể đặt tên chỉ tiêu khác nhau.
+Ví dụ cùng là tổng tài sản nhưng có thể có nhiều tên:
+Total Assets
+TOTAL ASSETS
+Tổng tài sản
+TỔNG CỘNG TÀI SẢN
+Vì vậy cần tạo bảng mapping:
+total_assets = ["Total Assets", "Tổng tài sản", "TỔNG CỘNG TÀI SẢN"]
+current_assets = ["Current Assets", "Tài sản ngắn hạn"]
+current_liabilities = ["Current Liabilities", "Nợ ngắn hạn"]
+Sau đó chuẩn hóa tất cả về một tên duy nhất.
+Nếu không làm bước này, công thức tài chính phía sau sẽ rất dễ sai.
+Xử lý thiếu dữ liệu
+Một số doanh nghiệp có thể thiếu báo cáo của vài năm.
+Cần quyết định:
+Giữ lại nếu thiếu ít
+Loại bỏ nếu thiếu quá nhiều
+Nội suy nếu phù hợp
+Chỉ lấy doanh nghiệp có tối thiểu 5 năm dữ liệu
+Với bài toán tài chính, không nên nội suy quá mạnh vì có thể làm méo dữ liệu thật.
+Xử lý ngoại lệ
+Dữ liệu tài chính thường có outlier rất lớn.
+Ví dụ:
+ROE tăng bất thường
+Lợi nhuận âm khiến tỷ lệ tăng trưởng bị méo
+Nợ quá nhỏ làm chỉ số đòn bẩy bị phóng đại
+Chi phí lãi vay bằng 0 làm chỉ số EBIT/Interest Expense bị lỗi
+Nên dùng các cách như:
+Winsorize 1% và 99%
+Loại giá trị vô hạn
+Thay division by zero bằng NaN
+Kiểm tra dữ liệu âm bất thường
+6. Tính các chỉ số tài chính
+Sau khi có dữ liệu sạch, hệ thống sẽ tính các biến tài chính để đưa vào mô hình.
+Các nhóm biến thường dùng:
+Nhóm thanh khoản
+Đo khả năng trả nợ ngắn hạn:
+Current Assets / Current Liabilities
+Working Capital / Total Assets
+Operating Cash Flow / Current Liabilities
+Nhóm sinh lời
+Đo khả năng tạo lợi nhuận:
+ROA = Lợi nhuận sau thuế / Tổng tài sản
+ROE = Lợi nhuận sau thuế / Vốn chủ sở hữu
+EBIT / Doanh thu
+EBIT / Tổng tài sản
+Doanh thu / Tổng tài sản
+Nhóm đòn bẩy
+Đo mức độ nợ:
+Nợ ngắn hạn / Tổng tài sản
+Nợ dài hạn / Tổng tài sản
+Tổng nợ / Tổng tài sản
+Nhóm quy mô và tăng trưởng
+Đo kích thước và xu hướng phát triển:
+log(Tổng tài sản)
+Tăng trưởng tổng tài sản
+Tăng trưởng lợi nhuận
+Vốn hóa thị trường
+Giá trị thị trường vốn chủ sở hữu / Tổng nợ
+Các chỉ số này là đầu vào cho mô hình dự đoán rủi ro.
+7. Gán nhãn doanh nghiệp distress
+Để huấn luyện AI, cần có nhãn.
+Ví dụ:
+0 = Không distress
+1 = Distress
+Có nhiều cách gán nhãn.
+Cách 1: Gán nhãn bằng luật tài chính
+Một doanh nghiệp có thể được xem là distress nếu có các dấu hiệu:
+Lỗ 2 năm liên tiếp
+Vốn chủ sở hữu âm
+Lợi nhuận chưa phân phối âm
+EBIT không đủ trả chi phí lãi vay
+Dòng tiền kinh doanh âm kéo dài
+Nợ ngắn hạn vượt quá tài sản ngắn hạn nghiêm trọng
+Cách này dễ hiểu, dễ giải thích và phù hợp với thực tế.
+Ưu điểm:
+Dễ triển khai
+Có logic tài chính rõ ràng
+Không phụ thuộc vào mô hình phức tạp
+Nhược điểm:
+Có thể hơi cứng
+Không bắt được doanh nghiệp rủi ro sớm
+Phụ thuộc vào bộ luật mình tự định nghĩa
+Cách 2: Gán nhãn bằng Altman Z-Score
+Altman Z-Score là công thức kinh điển để đánh giá khả năng phá sản doanh nghiệp.
+Nó dùng các chỉ số như:
+Vốn lưu động / Tổng tài sản
+Lợi nhuận giữ lại / Tổng tài sản
+EBIT / Tổng tài sản
+Giá trị thị trường vốn chủ sở hữu / Tổng nợ
+Doanh thu / Tổng tài sản
+Sau đó tạo ra một điểm số Z.
+Thông thường:
+Z cao → doanh nghiệp an toàn hơn
+Z thấp → rủi ro distress cao hơn
+Tuy nhiên, cần cẩn thận: công thức Altman gốc được xây dựng cho thị trường Mỹ, chưa chắc phù hợp hoàn toàn với Việt Nam.
+Nếu dùng cho thị trường Việt Nam, nên:
+Kiểm tra lại phân phối Z-Score
+Thử phiên bản Emerging Market Z-Score
+Điều chỉnh threshold theo dữ liệu Việt Nam
+So sánh với dữ liệu thực tế
+8. Xuất dataset cuối cùng
+Sau khi tính feature và gán nhãn, hệ thống xuất dataset cuối cùng.
+Một dòng dữ liệu nên có dạng:
+ticker
+company_name
+year
+exchange
+industry
+financial_features
+distress_label
+z_score
+Ví dụ:
+AAA | Công ty A | 2023 | HOSE | Sản xuất | ROA | ROE | DebtRatio | ... | 0
+BBB | Công ty B | 2023 | HNX | Xây dựng | ROA | ROE | DebtRatio | ... | 1
+Output nên có nhiều định dạng:
+CSV
+Excel
+Parquet
+Trong đó:
+CSV dễ dùng cho Excel và Python
+Excel dễ kiểm tra bằng tay
+Parquet phù hợp dữ liệu lớn và xử lý nhanh
+Ngoài dataset chính, nên xuất thêm báo cáo chất lượng dữ liệu:
+Số lượng công ty
+Số năm dữ liệu
+Tỷ lệ missing từng biến
+Số công ty bị loại
+Số mã crawl lỗi
+Phân phối label distress/non-distress
+9. Đưa dữ liệu vào mô hình AI/Machine Learning
+Khi đã có dataset, có thể train mô hình dự đoán.
+Các mô hình nên thử:
+Logistic Regression
+Random Forest
+XGBoost
+LightGBM
+CatBoost
+Neural Network nếu dữ liệu đủ lớn
+Với bài toán tài chính, nên bắt đầu từ mô hình dễ giải thích trước:
+Logistic Regression
+Random Forest
+XGBoost
+Không nên vội dùng Deep Learning nếu dataset chưa đủ lớn.
+Cách chia train/test
+Không nên chia random toàn bộ dữ liệu, vì dữ liệu tài chính có yếu tố thời gian.
+Cách hợp lý hơn:
+Train: 2018–2022
+Test: 2023–2025
+Lý do là trong thực tế, ta dùng dữ liệu quá khứ để dự đoán tương lai.
+Nếu random split, model có thể bị rò rỉ thông tin từ tương lai, làm kết quả ảo.
+Chỉ số đánh giá model
+Với bài toán distress, nên dùng:
+AUC
+F1-score
+Precision
+Recall
+Confusion Matrix
+Trong đó, Recall của nhóm distress rất quan trọng.
+Vì nếu doanh nghiệp thật sự có rủi ro nhưng model dự đoán là an toàn, hậu quả sẽ nghiêm trọng hơn việc cảnh báo nhầm.
+10. Kiến trúc tổng quan của hệ thống
+Có thể hình dung hệ thống gồm 5 tầng:
+Tầng 1: Data Source
+Website tài chính, API, thư viện dữ liệu, file Excel
+
+Tầng 2: Data Collector
+Module lấy danh sách công ty, lấy báo cáo tài chính, lấy giá cổ phiếu
+
+Tầng 3: Data Processor
+Làm sạch dữ liệu, chuẩn hóa tên chỉ tiêu, xử lý thiếu, xử lý outlier
+
+Tầng 4: Feature & Label Engine
+Tính chỉ số tài chính, tính Z-Score, gán nhãn distress
+
+Tầng 5: Output & Model
+Xuất dataset, train model, tạo dashboard/cảnh báo
+Nếu làm thành sản phẩm thật, có thể bổ sung:
+Dashboard theo dõi doanh nghiệp
+Cảnh báo doanh nghiệp rủi ro cao
+Bộ lọc theo ngành/sàn/năm
+So sánh doanh nghiệp cùng ngành
+Tự động cập nhật dữ liệu hàng quý
+API nội bộ cho website/app sử dụng
+11. Cách triển khai thực tế
+Một quy trình triển khai thực tế có thể như sau:
+Giai đoạn 1: MVP
+Chỉ cần làm bản đơn giản:
+Lấy danh sách 100–200 công ty
+Lấy dữ liệu 5 năm gần nhất
+Tính 10–15 chỉ số tài chính
+Gán nhãn bằng rule-based
+Xuất CSV
+Train thử model đầu tiên
+Mục tiêu giai đoạn này là kiểm tra xem dữ liệu có dùng được không.
+Giai đoạn 2: Mở rộng dữ liệu
+Sau khi MVP ổn, mở rộng:
+Lấy toàn bộ HOSE/HNX/UPCOM
+Lấy dữ liệu 7–10 năm
+Bổ sung dữ liệu giá cổ phiếu
+Thêm Z-Score
+Thêm ngành nghề
+Thêm báo cáo chất lượng dữ liệu
+Giai đoạn 3: Tối ưu model
+Sau khi dataset đủ tốt:
+So sánh nhiều model
+Tuning hyperparameter
+Xử lý imbalance
+Đánh giá theo từng ngành
+Đánh giá theo từng giai đoạn thị trường
+Kiểm tra feature importance
+Giai đoạn 4: Làm thành sản phẩm
+Có thể phát triển thành:
+Dashboard phân tích rủi ro doanh nghiệp
+API chấm điểm rủi ro
+Báo cáo PDF tự động
+Công cụ lọc cổ phiếu rủi ro thấp/cao
+Hệ thống cảnh báo sớm qua email/Telegram/Zalo
+12. Những lỗi thường gặp khi làm hệ thống này
+1. API đổi format
+Website tài chính có thể đổi endpoint, đổi params hoặc đổi cấu trúc JSON.
+Cách xử lý:
+Tạo nhiều source backup
+Có log lỗi rõ ràng
+Không phụ thuộc vào một nguồn duy nhất
+2. Dữ liệu thiếu quá nhiều
+Một số công ty thiếu báo cáo hoặc mới niêm yết.
+Cách xử lý:
+Đặt điều kiện tối thiểu số năm dữ liệu
+Loại công ty quá thiếu
+Ghi lại danh sách công ty thiếu để kiểm tra sau
+3. Đơn vị dữ liệu không đồng nhất
+Một nguồn có thể trả dữ liệu theo:
+VND
+nghìn VND
+triệu VND
+tỷ VND
+Nếu không kiểm tra, các chỉ số như vốn hóa, tổng tài sản, doanh thu sẽ bị sai.
+Cách xử lý:
+Kiểm tra đơn vị từng source
+Quy đổi về cùng một đơn vị
+So sánh ngẫu nhiên với báo cáo gốc
+4. Dùng sai công thức cho thị trường Việt Nam
+Một số công thức quốc tế không phù hợp hoàn toàn với Việt Nam.
+Ví dụ Altman Z-Score gốc có thể làm phân phối rủi ro bị lệch.
+Cách xử lý:
+Thử nhiều biến thể Z-Score
+So sánh với tình trạng thực tế của doanh nghiệp
+Điều chỉnh threshold theo dữ liệu Việt Nam
+5. Label không chính xác
+Nếu gán nhãn sai, model học sai.
+Cách xử lý:
+Dùng nhiều tiêu chí distress
+So sánh rule-based với Z-Score
+Kiểm tra thủ công một số doanh nghiệp mẫu
+Bổ sung dữ liệu hủy niêm yết nếu có
+13. Tóm tắt ngắn gọn
+Cách làm tổng quát của hệ thống này là:
+1. Lấy danh sách công ty niêm yết.
+2. Lọc bỏ nhóm ngành tài chính nếu không phù hợp.
+3. Gọi API hoặc crawl website để lấy báo cáo tài chính.
+4. Lấy thêm dữ liệu giá cổ phiếu và vốn hóa.
+5. Chuẩn hóa tên chỉ tiêu tài chính.
+6. Xử lý thiếu dữ liệu và outlier.
+7. Tính các chỉ số tài chính quan trọng.
+8. Gán nhãn doanh nghiệp có rủi ro distress hay không.
+9. Xuất dataset sạch.
+10. Dùng dataset để train model AI/Machine Learning.
+Điểm quan trọng nhất không nằm ở code, mà nằm ở thiết kế pipeline dữ liệu:
+Nguồn dữ liệu phải ổn
+Chuẩn hóa chỉ tiêu phải đúng
+Công thức tài chính phải kiểm tra kỹ
+Label phải có logic
+Dữ liệu phải đủ sạch trước khi train model
+Nếu làm tốt 5 phần này thì hệ thống có thể phát triển thành một công cụ phân tích rủi ro tài chính khá mạnh cho thị trường chứng khoán Việt Nam.

@@ -2,6 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, NavLink, Navigate, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
+  Building2,
+  FileText,
+  CheckSquare,
+  Calculator,
+  FileSpreadsheet,
   Search,
   Settings as SettingsIcon,
   User,
@@ -14,7 +19,15 @@ import { useAppStore } from '../../store/useAppStore';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/companies', label: 'Danh sách Công ty', icon: Building2 },
+  { to: '/financials', label: 'Báo cáo Tài chính', icon: FileText },
+  { to: '/normalization', label: 'Chuẩn hóa & Làm sạch', icon: CheckSquare },
+  { to: '/ratios', label: 'Chỉ số Tài chính', icon: Calculator },
+  // { to: '/distress', label: 'Gán nhãn Distress', icon: ShieldAlert },
+  // { to: '/ai-studio', label: 'AI/ML Studio', icon: Cpu },
+  // { to: '/prediction', label: 'Dự báo Rủi ro AI', icon: Sparkles },
   { to: '/explorer', label: 'Data Explorer', icon: Search },
+  { to: '/dataset', label: 'Xuất Dataset', icon: FileSpreadsheet },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
 
@@ -55,7 +68,7 @@ export const AppLayout: React.FC = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -67,20 +80,20 @@ export const AppLayout: React.FC = () => {
               }
             >
               <Icon size={16} strokeWidth={2} />
-              {label}
+              <span>{label}</span>
             </NavLink>
           ))}
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="px-4 py-4 border-t border-slate-100">
-          <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg bg-indigo-50/60">
-            <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0">
+        <div className="px-4 py-3 border-t border-slate-100">
+          <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-200/60">
+            <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0 shadow-sm">
               <span className="text-white text-xs font-bold">{username?.charAt(0).toUpperCase() || 'U'}</span>
             </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-slate-700 truncate">{username}</p>
-              <p className="text-[10px] text-slate-400">Administrator</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-slate-800 truncate">{username}</p>
+              <p className="text-[10px] text-emerald-600 font-medium">● Online / Admin</p>
             </div>
           </div>
         </div>

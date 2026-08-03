@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     curated_data_dir: Path = Path("data/curated/ohlcv")
     seed_raw_data_dir: Path = Path("reports/raw/ohlcv")
     universe_path: Path = Path("universe/ticker_universe_v1.csv")
-    cors_origins: str = "http://localhost:8501"
+    cors_origins: str = "http://localhost:8501,http://localhost:5173,http://127.0.0.1:5173"
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",

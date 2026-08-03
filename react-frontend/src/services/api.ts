@@ -34,8 +34,17 @@ export const getHealth = async (): Promise<any> => {
   return apiClient.get('/health', { timeout: 5000 });
 };
 
-export const getCompanies = async (limit = 100): Promise<any> => {
-  return apiClient.get('/companies', { params: { page: 1, limit } });
+export const getCompanies = async (
+  limit = 1000,
+  exchange?: string,
+  industry?: string,
+  excludeFinancial = false
+): Promise<any> => {
+  const params: Record<string, any> = { page: 1, limit };
+  if (exchange) params.exchange = exchange;
+  if (industry) params.industry = industry;
+  if (excludeFinancial) params.exclude_financial = true;
+  return apiClient.get('/companies', { params });
 };
 
 export const getPrices = async (
@@ -66,4 +75,96 @@ export const runPipeline = async (
     },
     { timeout: 180000 }
   );
+};
+
+export const getFinancialReport = async (
+  ticker: string,
+  periodType: 'YEARLY' | 'QUARTERLY' = 'YEARLY'
+): Promise<any> => {
+  return apiClient.get(`/financial-reports/${ticker}`, {
+    params: { period_type: periodType },
+  });
+};
+
+export const ingestFinancialReports = async (
+  tickers: string[],
+  startYear: number,
+  endYear: number,
+  reportTypes = ['BALANCE_SHEET', 'INCOME_STATEMENT', 'CASH_FLOW']
+): Promise<any> => {
+  return apiClient.post(
+    '/financial-reports/ingest',
+    {
+      tickers,
+      start_year: startYear,
+      end_year: endYear,
+      report_types: reportTypes,
+    },
+    { timeout: 180000 }
+  );
+};
+
+export const getMetricMappings = async (): Promise<any> => {
+  return apiClient.get('/data-processing/metric-mappings');
+};
+
+export const getDataQualityReport = async (): Promise<any> => {
+  return apiClient.get('/data-processing/quality-report');
+};
+
+export const runDataNormalization = async (config: {
+  minYears: number;
+  winsorizePct: number;
+  targetUnit: string;
+}): Promise<any> => {
+  return apiClient.post('/data-processing/normalize', config);
+};
+
+export const getFinancialRatios = async (ticker: string): Promise<any> => {
+  return apiClient.get(`/financial-ratios/${ticker}`);
+};
+
+export const calculateFinancialRatios = async (tickers: string[]): Promise<any> => {
+  return apiClient.post('/financial-ratios/calculate', { tickers }, { timeout: 180000 });
+};
+
+export const getDistressLabels = async (ticker: string): Promise<any> => {
+  return apiClient.get(`/distress-labeling/${ticker}`);
+};
+
+export const runDistressLabelingEngine = async (config: {
+  method: 'RULE_BASED' | 'Z_SCORE' | 'HYBRID';
+  zThreshold: number;
+}): Promise<any> => {
+  return apiClient.post('/distress-labeling/run', config);
+};
+
+export const getDatasetPreview = async (): Promise<any> => {
+  return apiClient.get('/dataset/preview');
+};
+
+export const exportDatasetFile = async (format: 'CSV' | 'EXCEL' | 'PARQUET'): Promise<any> => {
+  return apiClient.get('/dataset/export', {
+    params: { format },
+    responseType: 'blob',
+  });
+};
+
+export const trainModel = async (config: {
+  model_type: string;
+  train_start_year: number;
+  train_end_year: number;
+  test_start_year: number;
+  test_end_year: number;
+  handle_imbalance: boolean;
+}): Promise<any> => {
+  return apiClient.post('/ai-models/train', config, { timeout: 180000 });
+};
+
+export const getModelEvaluation = async (modelType: string): Promise<any> => {
+  return apiClient.get(`/ai-models/evaluation/${modelType}`);
+};
+
+export const getDistressPrediction = async (ticker: string): Promise<any> => {
+  return apiClient.get(`/prediction/${ticker}`);
 };

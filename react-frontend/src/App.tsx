@@ -10,6 +10,14 @@ import { AppLayout } from './components/layout/AppLayout';
 const Login = lazy(() => import('./features/auth/Login').then((m) => ({ default: m.Login })));
 const Register = lazy(() => import('./features/auth/Register').then((m) => ({ default: m.Register })));
 const Dashboard = lazy(() => import('./features/dashboard/Dashboard').then((m) => ({ default: m.Dashboard })));
+const CompanyList = lazy(() => import('./features/company/CompanyList').then((m) => ({ default: m.CompanyList })));
+const FinancialStatements = lazy(() => import('./features/financial-statements/FinancialStatements').then((m) => ({ default: m.FinancialStatements })));
+const DataNormalization = lazy(() => import('./features/data-normalization/DataNormalization').then((m) => ({ default: m.DataNormalization })));
+const FinancialRatiosView = lazy(() => import('./features/financial-ratios/FinancialRatiosView').then((m) => ({ default: m.FinancialRatiosView })));
+const DistressLabelingView = lazy(() => import('./features/distress-labeling/DistressLabelingView').then((m) => ({ default: m.DistressLabelingView })));
+const DatasetExportView = lazy(() => import('./features/dataset-export/DatasetExportView').then((m) => ({ default: m.DatasetExportView })));
+const ModelStudioView = lazy(() => import('./features/ai-models/ModelStudioView').then((m) => ({ default: m.ModelStudioView })));
+const PredictionDashboardView = lazy(() => import('./features/prediction/PredictionDashboardView').then((m) => ({ default: m.PredictionDashboardView })));
 const DataExplorer = lazy(() => import('./features/data-explorer/DataExplorer').then((m) => ({ default: m.DataExplorer })));
 const Settings = lazy(() => import('./features/settings/Settings').then((m) => ({ default: m.Settings })));
 
@@ -50,6 +58,14 @@ function App() {
             {/* Protected routes */}
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/companies" element={<CompanyList />} />
+              <Route path="/financials" element={<FinancialStatements />} />
+              <Route path="/normalization" element={<DataNormalization />} />
+              <Route path="/ratios" element={<FinancialRatiosView />} />
+              <Route path="/distress" element={<DistressLabelingView />} />
+              <Route path="/dataset" element={<DatasetExportView />} />
+              <Route path="/ai-studio" element={<ModelStudioView />} />
+              <Route path="/prediction" element={<PredictionDashboardView />} />
               <Route path="/explorer" element={<DataExplorer />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
